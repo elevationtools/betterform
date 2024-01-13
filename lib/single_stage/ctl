@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+. $ELEVATION_BASH_UTILS/core/standard_script.bash
+
+function main() {
+  make -f "$(elevation::script_dir)/ctl.mk" "$@"
+}
+
+elevation::init "$@"
+

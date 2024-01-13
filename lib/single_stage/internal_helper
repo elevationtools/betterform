@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+#
+# Internal helper, do not use directly.
+# Used to avoid backslash escape clutter in ctl.mk
+
+. $ELEVATION_BASH_UTILS/core/standard_script.bash
+
+function main() {
+  cmd="${1:?}"
+  case "$cmd" in
+    init|up) "cmd_$cmd" ;;
+    *) echo "ERROR: invalid command: $cmd" >&2; exit 1 ;;
+  esac
+}
+
+function cmd_init() {
+  if [ -e .terraform.lock.hcl ]; then
+    cp -at "$GENFILES/stamp/" .terraform.lock.hcl
+  fi
+  (
+    cd "$GENFILES/stamp"
+    terraform init
+  )
+  cp -at ./ "$GENFILES/stamp/.terraform.lock.hcl"
+}
+
+function cmd_up() {
+  outfile_abs="$(realpath "$OUTPUT_FILE")"
+  (
+    cd "$GENFILES/stamp"
+    terraform apply
+    if terraform output -json > "${outfile_abs}.tmp"; then
+      mv "${outfile_abs}.tmp" "$outfile_abs"
+    else
+      echo "Error: output saved in ${outfile_abs}.tmp" >&2
+      exit 1
+    fi
+  )
+}
+
+elevation::init "$@"
+

@@ -1,0 +1,65 @@
+{
+  "created_role": {
+    "sensitive": false,
+    "type": [
+      "object",
+      {
+        "arn": "string",
+        "assume_role_policy": "string",
+        "create_date": "string",
+        "description": "string",
+        "force_detach_policies": "bool",
+        "id": "string",
+        "inline_policy": [
+          "set",
+          [
+            "object",
+            {
+              "name": "string",
+              "policy": "string"
+            }
+          ]
+        ],
+        "managed_policy_arns": [
+          "set",
+          "string"
+        ],
+        "max_session_duration": "number",
+        "name": "string",
+        "name_prefix": "string",
+        "path": "string",
+        "permissions_boundary": "string",
+        "tags": [
+          "map",
+          "string"
+        ],
+        "tags_all": [
+          "map",
+          "string"
+        ],
+        "unique_id": "string"
+      }
+    ],
+    "value": {
+      "arn": "arn:aws:iam::152101591698:role/BrianTestingTerraformA",
+      "assume_role_policy": "{\"Statement\":[{\"Action\":\"sts:AssumeRole\",\"Condition\":{\"ArnLike\":{\"aws:PrincipalArn\":\"arn:aws:iam::152101591698:role/aws-reserved/sso.amazonaws.com/eu-west-2/AWSReservedSSO_TestAccess_*\"}},\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::152101591698:root\"}}],\"Version\":\"2012-10-17\"}",
+      "create_date": "2024-01-13T13:48:49Z",
+      "description": "",
+      "force_detach_policies": false,
+      "id": "BrianTestingTerraformA",
+      "inline_policy": [],
+      "managed_policy_arns": [],
+      "max_session_duration": 3600,
+      "name": "BrianTestingTerraformA",
+      "name_prefix": "",
+      "path": "/",
+      "permissions_boundary": "",
+      "tags": null,
+      "tags_all": {
+        "Terraform": "true",
+        "ThrowMeAway": "true"
+      },
+      "unique_id": "AROASG2PWDKJOSBG3B2JR"
+    }
+  }
+}
