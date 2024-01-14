@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+make -f "$(dirname "$(readlink -f "$0")")/ctl.mk" "$@"
+

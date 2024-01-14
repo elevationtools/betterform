@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+#
+# Internal helper, do not use directly.
+#
+# This is just a thin wrapper around terraform that ensures the lock file and
+# output files go where they belong.
+set -euo pipefail
+
+function main() {
+  cmd="${1:?}"
+
+	: ${STAGE_OUTPUT_DIR:?}
+	: ${INTERACTIVE:=true}
+
+  case "$cmd" in
+    init|apply_and_output|destroy) "cmd_$cmd" ;;
+    *) echo "ERROR: invalid command: $cmd" >&2; exit 1 ;;
+  esac
+}
+
+function cmd_init() {
+  if [ -e "$STAGE_OUTPUT_DIR/.terraform.lock.hcl" ]; then
+    cp -at ./ "$STAGE_OUTPUT_DIR/.terraform.lock.hcl"
+  fi
+	echo "Running 'terraform init'"
+	terraform init \
+    $( [[ "$INTERACTIVE" = false ]] && echo '-input=false' )
+  cp -at "$STAGE_OUTPUT_DIR" ".terraform.lock.hcl"
+}
+
+function cmd_apply_and_output() {
+  local outfile="$STAGE_OUTPUT_DIR/output.json"
+	echo "Running 'terraform apply'"
+	terraform apply \
+    $( [[ "$INTERACTIVE" = false ]] && echo '-input=false -auto-approve' )
+	echo "Running 'terraform output -json'"
+	if terraform output -json > "${outfile}.tmp"; then
+		mv "${outfile}.tmp" "$outfile"
+	else
+		echo "Error: output saved in ${outfile}.tmp" >&2
+		exit 1
+	fi
+}
+
+function cmd_destroy() {
+	terraform destroy \
+    $( [[ "$INTERACTIVE" = false ]] && echo '-input=false -auto-approve' )
+}
+
+main "$@"
+

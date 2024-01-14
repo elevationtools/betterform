@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+# Just delegate to ./ctl.mk
+exec make -f "$(dirname "$(readlink -f "$0")")/ctl.mk" "$@"
+
