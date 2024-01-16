@@ -32,6 +32,7 @@ $(GENFILES)/stamped: $(GENFILES) $(CONFIG_JSON_FILE) \
 		$(shell find template -type f)
 	gomplate --input-dir template --output-dir "$(GENFILES)/stamp" \
 		--context "cfg=$(CONFIG_JSON_FILE)"
+	touch "$@"
 
 $(GENFILES)/down: .terraform.lock.hcl $(GENFILES)/stamped
 	rm -f $(GENFILES)/up
