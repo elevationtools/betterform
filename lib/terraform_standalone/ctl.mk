@@ -5,11 +5,13 @@ this_dir := $(patsubst %/,%,$(dir $(this_script)))
 
 #### Interface ####
 
+IMPL_DIR ?= .
 GENFILES ?= genfiles
-CONFIG_JSON_FILE ?= genfiles/config.json
+CONFIG_JSON_FILE ?= $(GENFILES)/config.json
 OUTPUT_FILE ?= output.json
 
 # Convert main environment variable paths to abs paths.
+export IMPL_DIR := $(abspath $(IMPL_DIR))
 export GENFILES := $(abspath $(GENFILES))
 export CONFIG_JSON_FILE := $(abspath $(CONFIG_JSON_FILE))
 export OUTPUT_FILE := $(abspath $(OUTPUT_FILE))
@@ -35,8 +37,8 @@ $(GENFILES)/up: .terraform.lock.hcl $(GENFILES)/stamped
 	touch $@
 
 $(GENFILES)/stamped: $(GENFILES) $(CONFIG_JSON_FILE) \
-		$(shell find template -type f)
-	gomplate --input-dir template --output-dir "$(GENFILES)/stamp" \
+		$(shell find $(IMPL_DIR)/template -type f)
+	gomplate --input-dir $(IMPL_DIR)/template --output-dir "$(GENFILES)/stamp" \
 		--context "cfg=$(CONFIG_JSON_FILE)"
 	touch $@
 
