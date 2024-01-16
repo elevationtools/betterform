@@ -2,6 +2,7 @@
 #
 # Internal helper, do not use directly.
 # Used to avoid backslash escape clutter in ctl.mk
+set -euo pipefail
 
 function main() {
   : ${GENFILES:?}
