@@ -5,9 +5,14 @@ this_dir := $(patsubst %/,%,$(dir $(this_script)))
 
 #### Interface ####
 
-export GENFILES ?= genfiles
-export CONFIG_JSON_FILE ?= genfiles/config.json
-export OUTPUT_FILE ?= output.json
+GENFILES ?= genfiles
+CONFIG_JSON_FILE ?= genfiles/config.json
+OUTPUT_FILE ?= output.json
+
+# Convert main environment variable paths to abs paths.
+export GENFILES := $(abspath $(GENFILES))
+export CONFIG_JSON_FILE := $(abspath $(CONFIG_JSON_FILE))
+export OUTPUT_FILE := $(abspath $(OUTPUT_FILE))
 
 .PHONY: help stamp init up down clean
 help:
