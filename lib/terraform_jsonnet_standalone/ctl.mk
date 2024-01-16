@@ -6,7 +6,8 @@ include $(this_dir)/../terraform_standalone/ctl.mk
 
 CONFIG_JSONNET_FILE ?= config.jsonnet
 
-$(CONFIG_JSON_FILE): $(CONFIG_JSONNET_FILE)
+$(CONFIG_JSON_FILE): $(CONFIG_JSONNET_FILE) \
+											$(shell jsonnet-deps $(CONFIG_JSONNET_FILE))
 	jsonnet $(CONFIG_JSONNET_FILE) -o $@
 
 $(this_script):: ;
