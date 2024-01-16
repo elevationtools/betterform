@@ -27,12 +27,13 @@ $(GENFILES)/up: .terraform.lock.hcl $(GENFILES)/stamped
 
 .terraform.lock.hcl: $(GENFILES)/stamped
 	$(this_dir)/internal_helper init
+	touch $@
 
 $(GENFILES)/stamped: $(GENFILES) $(CONFIG_JSON_FILE) \
 		$(shell find template -type f)
 	gomplate --input-dir template --output-dir "$(GENFILES)/stamp" \
 		--context "cfg=$(CONFIG_JSON_FILE)"
-	touch "$@"
+	touch $@
 
 $(GENFILES)/down: .terraform.lock.hcl $(GENFILES)/stamped
 	rm -f $(GENFILES)/up
