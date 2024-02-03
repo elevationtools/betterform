@@ -30,7 +30,9 @@ function cmd_init() {
     echo "Running terraform init"
     terraform init $(interactive || echo '-input=false')
   )
-  cp -at ./ "$GENFILES/stamp/.terraform.lock.hcl"
+  if [ -e "$GENFILES/stamp/.terraform.lock.hcl" ]; then
+    cp -at ./ "$GENFILES/stamp/.terraform.lock.hcl"
+  fi
 }
 
 function cmd_up() {
