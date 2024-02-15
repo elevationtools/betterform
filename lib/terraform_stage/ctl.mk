@@ -26,7 +26,7 @@ $(STAGE_GENFILES)/up: $(STAGE_OUTPUT_DIR)/.terraform.lock.hcl
 	$(this_dir)/internal_helper apply_and_output
 	touch $@
 
-$(STAGE_OUTPUT_DIR)/.terraform.lock.hcl: $(STAGE_GENFILES) $(STAGE_OUTPUT_DIR) \
+$(STAGE_OUTPUT_DIR)/.terraform.lock.hcl: $(STAGE_GENFILES)/dirs_created \
 		$(shell find $(STAGE_GENFILES) -path $(STAGE_GENFILES)/up -prune -o \
 																		-path $(STAGE_GENFILES)/down -prune -o \
 																		-type f -print)
@@ -38,8 +38,10 @@ $(STAGE_GENFILES)/down: $(STAGE_OUTPUT_DIR)/.terraform.lock.hcl
 	$(this_dir)/internal_helper destroy
 	touch $@
 
-$(STAGE_GENFILES) $(STAGE_OUTPUT_DIR):
-	mkdir -p $@
+$(STAGE_OUTPUT_DIR)/dirs_created:
+	mkdir -p $(STAGE_GENFILES)
+	mkdir -p $(STAGE_OUTPUT_DIR)
+	touch $@
 
 $(this_script):: ; # Don't try to remake this file.
 

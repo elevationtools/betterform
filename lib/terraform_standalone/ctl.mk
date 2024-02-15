@@ -36,7 +36,7 @@ $(GENFILES)/up: .terraform.lock.hcl $(GENFILES)/stamped
 	$(this_dir)/internal_helper init
 	touch $@
 
-$(GENFILES)/stamped: $(GENFILES) $(CONFIG_JSON_FILE) \
+$(GENFILES)/stamped: $(GENFILES)/dirs_created $(CONFIG_JSON_FILE) \
 		$(shell find $(IMPL_DIR)/template -type f)
 	gomplate --input-dir $(IMPL_DIR)/template --output-dir "$(GENFILES)/stamp" \
 		--context "cfg=$(CONFIG_JSON_FILE)"
@@ -47,8 +47,9 @@ $(GENFILES)/down: .terraform.lock.hcl $(GENFILES)/stamped
 	$(this_dir)/internal_helper down
 	touch $@
 
-$(GENFILES):
-	mkdir -p $@
+$(GENFILES)/dirs_created:
+	mkdir -p $(GENFILES)
+	touch $@
 
 clean:
 	rm -rf $(GENFILES)

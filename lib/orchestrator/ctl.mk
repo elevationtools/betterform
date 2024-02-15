@@ -41,7 +41,7 @@ STAGES_STAMPED := $(foreach x, $(STAGES), $(x)-stamped)
 up: $(STAGES_UP)
 down: $(STAGES_DOWN)
 
-$(STAGES_STAMPED): %-stamped: $(GENFILES) $(OUTPUT_DIR) \
+$(STAGES_STAMPED): %-stamped: $(GENFILES)/dirs_created \
 		$(shell find $(IMPL_DIR) -type f) $(CONFIG_JSON_FILE)
 	@# TODO: remove files in output-dir that don't exist in input-dir without
 	@# removing everything.
@@ -54,8 +54,9 @@ $(STAGES_UP): %-up: %-stamped
 $(STAGES_DOWN): %-down: %-stamped
 	STAGE_NAME="$*" $(GENFILES)/$*/ctl down
 
-$(OUTPUT_DIR) $(GENFILES):
-	mkdir -p $@
+$(GENFILES)/dirs_created:
+	mkdir -p $(GENFILES)
+	mkdir -p $(OUTPUT_DIR)
 
 .DEFAULT_GOAL := help
 .PHONY: help
