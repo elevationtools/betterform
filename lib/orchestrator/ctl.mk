@@ -9,6 +9,10 @@
 this_script := $(lastword $(MAKEFILE_LIST))
 this_dir := $(dir $(this_script))
 
+IMPL_DIR ?= .
+GENFILES ?= genfiles
+CONFIG_JSON_FILE ?= genfiles/config.json
+OUTPUT_DIR ?= .
 
 # Lock down the file paths to abs paths.  This is a lot more convenient and safe
 # for the stage implementations.
@@ -41,22 +45,22 @@ STAGES_STAMPED := $(foreach x, $(STAGES), $(x)-stamped)
 up: $(STAGES_UP)
 down: $(STAGES_DOWN)
 
-$(STAGES_STAMPED): %-stamped: $(GENFILES)/dirs_created \
-		$(shell find $(IMPL_DIR) -type f) $(CONFIG_JSON_FILE)
+$(STAGES_STAMPED): %-stamped: \
+		$(shell find $(IMPL_DIR) -type f) $(CONFIG_JSON_FILE) \
+		| $(GENFILES) $(OUTPUT_DIR)
 	@# TODO: remove files in output-dir that don't exist in input-dir without
 	@# removing everything.
 	STAGE_NAME="$*" gomplate --context "cfg=$(CONFIG_JSON_FILE)" \
 		--input-dir "$(IMPL_DIR)/$*" --output-dir "$(GENFILES)/$*"
 
 $(STAGES_UP): %-up: %-stamped
-	STAGE_NAME="$*" $(GENFILES)/$*/ctl up
+	cd $(GENFILES)/$* && STAGE_NAME="$*" $(GENFILES)/$*/ctl up
 
 $(STAGES_DOWN): %-down: %-stamped
-	STAGE_NAME="$*" $(GENFILES)/$*/ctl down
+	cd $(GENFILES)/$* && STAGE_NAME="$*" $(GENFILES)/$*/ctl down
 
-$(GENFILES)/dirs_created:
-	mkdir -p $(GENFILES)
-	mkdir -p $(OUTPUT_DIR)
+$(GENFILES) $(OUTPUT_DIR):
+	mkdir -p $@
 
 .DEFAULT_GOAL := help
 .PHONY: help
