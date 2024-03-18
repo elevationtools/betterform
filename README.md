@@ -1,39 +1,64 @@
 
 # Betterform
-Infrastructure automation DAG tool.
 
-> WARNING: WORK IN PROGRESS
+An infrastructure-as-code tool meant to fill gaps in other tools like Terraform,
+Jsonnet, etc.
 
-## Overview
 
-Betterform is a collection of tools to help create automation, particularly for
-cloud infrastructure projects such as those that use Terraform.
+## Key design goals
 
-Key design goals:
-- Allow creating multi-stage DAGs, with each stage able to be implemented with
-  any language and tooling: Terraform, jsonnet, golang, bash, GNU make,
+- Provide a general templating solution to fill missing pieces in tools like
+  Terraform and Jsonnet.  The solution should be powerful and generic enough to
+  solve problems for many tools, rather than requiring a different solution for
+  each tool.
+
+- Allow creating a DAG of "stages", with each stage able to be implemented with
+  any language and tooling such as Terraform, jsonnet, golang, bash, GNU make,
   CloudFormation, kubectl, etc.
-- Provide a general solution for problems in tools like Terraform and jsonnet.
-  The solution should be powerful and generic enough to solve problems for many
-  tools, rather than requiring a different solution for each tool.
+
+
+## Comparing to Alternatives
+
+The most obvious alternatives are Terragrunt and Terraspace. They are motivated
+by the same problems in Terraform (discussed below) that motivated this project.
+Betterform has the following advantages:
+
+- It's not specific to Terraform.  It's often more productive to mix Terraform
+  with other tooling, for example, direct use of `kubectl` combined with
+  `jsonnet`.  Betterform supports this more general purpose use case and is
+  useful in solving similar problems in any tooling, even tools that don't yet
+  exist!
+
+- Betterform requires learning much less single-purpose and framework-specific
+  knowledge.  Instead, it makes use of generally useful tools, like `gomplate`.
+
+
+## Status
+
+Currently, at the "working prototype" stage.  The implementation makes heavy use
+of bash and GNU make.  Long term, different tools should probably be considered
+(golang, etc).  Additionally, `gomplate` is currently used for templating but a
+different general purpose templating solution could improve upon some
+shortcomings of `gomplate` that impact Betterform.
 
 
 ## Common Tooling Problems Addressed
 
-Betterform solves the following deficiencies with common infrastructure
-automation tooling.  The solution used (text templating using gomplate) is
-generally useful and will likely be able to solve other yet-to-be-discovered
-shortcomings of other tools.
+This section describes some of the problems with common tools that motivated
+Betterform.
 
 ### Terraform Problems
 
-The same problems that resulted in products like Terragrunt and Terraspace, most
-notably:
 - Inability to parameterize `backend` configuration.
-- Lack of solution when multi-staging is required. (and Terraform says it's
-  required at times).
+- Lack of solution when multi-staging is required. (and [Terraform admits it's
+  required in many common
+  cases](https://github.com/hashicorp/terraform/issues/27785#issuecomment-780017326)).
 - Extreme boilerplate when trying to use a module as a library for multiple
-  different deployments/environments/etc.
+  different deployments/environments/etc.  In particular, there is much
+  redundancy of the `terraform` and `provider` blocks.
+
+These are the same problems that motivated the existence of products like
+Terragrunt and Terraspace.
 
 ### Jsonnet Problems
 
@@ -41,120 +66,126 @@ notably:
 - Potentially problematic requirement to add configuration for each environment
   variables that needs to be accessed.
 
+### Helm Problems
 
-## Core Concepts and Terms
+- Lack of ability to parameterize `Values.yaml`.
+- Lack of transitive dependency fetching preventing code reuse through layering.
+  (this is only indirectly solved by Betterform).
 
-#### Wave Program and Wave Interface
+> NOTE: Support for including Helm chart sources will require an additional
+> feature to allow passing to `gomplate` different values for `--left-delim` and
+> `--right-delim`.  Helm charts can still be used today if they are referenced
+> by name rather than directly including the source.
 
-A "Wave Program" implements the "Wave Interface" if it does the following:
 
-- Handles commands `up` and `down`
-  - i.e. `./prog up` and `./prog down`
-  - Note: this is where the name comes from, waves go up and down.
+## Core Concepts
+
+### Wave Program and Wave Interface
+
+The core concept of Betterform is a "Wave Program".  A program is a "Wave
+Program" (or just "wave" for short) if it implements the "Wave Interface", which
+is canonically defined here by the following requirements:
+
+- Is executable.
+
+- MUST implement `up` and/or `down` commands.
+  - Note: This is where the name comes from, waves go up and down.
+
+- MUST handle the command `help`, which MUST be the default command.
+  - i.e. running both `./prog help` and `./prog` will show help.
+  - `help` SHOULD print the list of all commands available and any other
+    important information to know how to use the wave.
+  - If only `up` and `down` are available, then help can optionally be blank.
 
 - Respects the following environment variables:
   - `GENFILES`
-    - A directory that the wave program MUST use for files that shouldn't be
-      checked into version control, but that should still be kept around for use
-      by other dependency programs, or because they require a non-negligible
-      amount of time to produce.
-      - Note: This is what you'd put in your `.gitignore` file.
+    - Defaults to `./genfiles`
+    - A directory that the wave program MUST use for files that SHOULD NOT be
+      checked into version control, but that MUST still be kept around for use
+      by other dependency programs, or that SHOULD be kept around to avoid
+      unnecessarily repeating time consuming steps.
+      - Note: You almost certainly want `.gitignore` to contain `**/genfiles/`.
   - `OUTPUT_DIR`
-    - Defines a directory where the wave should store output the is meant to be
+    - Defaults to `.`
+    - Defines a directory where the wave should store output that is meant to be
       checked into version control.
   - `CONFIG_JSON_FILE`
+    - Defaults to `./genfiles/config.json`
     - Path to a JSON file that the wave program can read to adapt behavior. The
-      wave program MUST document the schema it expects.
-
-Implementation:
-- Competely unspecified. It can be implemented however you like.
+      wave program SHOULD document the schema it expects.
+    - Optional for waves that don't need configuration.
+  - `CONFIG_JSONNET_FILE`
+    - Defaults to `./config.jsonnet`
+    - A path to a jsonnet file which will produce and/or update
+      `CONFIG_JSON_FILE`.
+      - Default GNU make semantics are used to update `CONFIG_JSON_FILE` with
+        prerequists as `CONFIG_JSONNET_FILE` and
+        `jsonnet-deps $CONFIG_JSONNET_FILE`.
+    - Optional for wave implementations (and so far none of the standard waves
+      in the library use this).
+    - Optional for callers of the wave.  If not specified, the caller MUST make
+      sure `CONFIG_JSON_FILE` already exists.
+  - `INTERACTIVE`
+    - Defaults to unset.
+    - If set to exactly `false` then avoid prompting the user so that it can be
+      used in automation.
+  - `IMPL_DIR`
+    - Defaults to `.`
+    - Path to where the wave program's implementation files are located.  This
+      is often different from the current working directory because wave's are
+      meant to be implemented once, then called from many different directories,
+      each with a different configurations, in order to support different
+      deployments in different locations (dev in us-east, staging in eu-north,
+      etc).
 
 Notes:
-- If a wave program has expectations about the current working directory, then
-  it MUST document this.
-- The environment variables, if specifying relative paths, must be interpretted
-  as relative to the current working directory, not the wave program's
-  implementation directory.
-
-
-#### Orchestrator
-
-A wave program which internally executes a DAG of child "Stages", which are also
-wave programs.
-
-Caller Interface:
-  - Implements "Standalone Wave" interface, nothing more.
-
-Implementor Interface:
-  - Define the stage DAG in Makefile form.
-  - Create a directory for each child "Stage".
-
-
-#### Stage
-
-A single step of an Orchestrator's DAG.  The files contained in the stage are
-templates that the Orchestrator will "stamped" with gomplate.  The orchestrator
-will then use the stamped files to run the stage.
-
-Caller Interface:
-- None, it's not called directly, it's called via the orchestrator.
+- If a wave program has expectations about the current working directory or
+  `IMPL_DIR`, then it MUST document this.
+- Relative paths in the above environment variables are considered relative to
+  the current working directory when the wave program is called.
 
 Implementation Requirements:
-- A "stage template directory" must be created directly within the
-  orchestrator's implementation directory. The directory name defines the stage
-  name.
-  - Stage template directory requirements:
-    - Contains files that MUST be processable by gomplate (they aren't required
-      to use any gomplating, they just need to MUST NOT fail processing by
-      gomplate.  Helm charts are currently a problem, this is discussed below).
-  - Note: The orchestrator uses this template directory to create the "stage
-    stamped directory" in `$GENFILES/$STAGE_NAME`. The directory structure from
-    the template directory is maintained.
-- Requirements on "stage stamped directory":
-  - MUST contain a "ctl" executable that implements the "Wave Interface".
-
-The orchestrator will ensure the following before stamping and running stages:
-- Environment variables:
-  - `STAGE_NAME` is set to the stage name.
-  - `IMPL_DIR` points to the orchestrator's implementation directory (i.e. the
-    directory containing the stage template directories).
-  - The wave interface environment variables will be resolved to absolute paths.
-- The current working directory will not be changed from when the orchestrator
-  was executed.
-- For a given stage, all dependency stages will have completed successfully
-  before it is stamped, so the dependency stage genfiles and outputs are
-  available. This means the following things could work:
-  - At stamp time:
-    ```
-    {{ $x := print .Env.OUTPUT_DIR "/earlier_stage/output.json" | data.JSON -}}
-    {{ $x.some.json.value }}
-    ```
-  - At run time:
-    ```
-    #!/usr/bin/env bash
-    cat $OUTPUT_DIR/earlier_stage/output.json
-    ```
-  (Also similarly with `$GENFILES`)
+- Competely unspecified. It can be implemented however you like in any language.
 
 
-##### Using a standalone "Wave Program" as a stage.
+## Standard Library
 
-A standalone wave program can be used as a stage via a few line bash script.  For example:
+The following waves are implemented under `./lib/`.  They should be used via the
+symlinks `./bin/betterform_*`.
 
-```shell
-#!/usr/bin/env bash
-export GENFILES=$GENFILES/this_stage
-export OUTPUT_DIR=$OUTPUT_DIR/this_stage
-export CONFIG_JSON_FILE=$OUTPUT_DIR/some_prior_stage/stuff.json
-exec "{{ .Env.REPO_ROOT }}/foo/bar/my_wave" "$@"
-```
+### Standalone Waves
 
-Key points:
-- You don't have to override the "Wave Interface" env vars, but likely it will
-  make sense for the sake of organization and to avoid collisions.
-- The standalone wave program can live elsewhere, but the few line script that
-  points at it must be implemented as a stage, meaning it lives in the "stage
-  template directory".
+#### `terraform_standalone`
+
+A wave program which stamps `$IMPL_DIR/template` using `gomplate` to
+`$GENFILES/stamped` and then runs terraform within that directory.
+
+This cannot be used as an orchestrator stage.  Instead use
+`./lib/orchestrator/stage/terraform`.
+
+#### `terraform_jsonnet_standalone`
+
+The same as `terraform_standalone` except that `CONFIG_JSONNET_FILE` is used
+instead of `CONFIG_JSON_FILE`.
+
+> TODO: deprecate this and implement the functionality within
+> `terraform_standalone` directly.
+
+#### `terraform_state_storage_aws`
+
+A wave program which creates the AWS S3 and DynamoDB resources to be used for
+terraform state storage.
+
+### Orchestrator and Stages
+
+The orchestrator is a wave program which internally executes a DAG of child
+"stages", each of which it stamps with `gomplate`, and upon stamping becomes a
+wave program itself.
+
+[`./lib/orchestrator/`](./lib/orchestrator/).  See the README for details.
+
+Most standalone waves in the standard library cannot be used directly as stages,
+so instead they have implementations in `./lib/orchestrator/stage/*`.
 
 
 ## Future Work
@@ -173,7 +204,18 @@ can be stamped.
 ### Helm support
 
 Helm also uses go templating and therefore a Helm chart in a stage template
-would cause gomplate to fail.  Some possible solutions:
-- Use gomplate's `GOMPLATE_LEFT_DELIM/GOMPLATE_RIGHT_DELIM` feature.
-- ...or just never use Helm and always use a better tool like jsonnet.
+would cause gomplate to fail. Also see the related "future work" item in
+[`./lib/orchestrator/README.md`](./lib/orchestrator/README.md).
+
+
+## The "Betterform" Name
+
+The "Betterform" name came from first considering the name "Goodform", as in the
+expression "good form", but then downgrading from "good" to just "better" to
+humbly admit that while it is an improvement to alternatives, it still perhaps
+has some work to be truly "good".
+
+Unfortunately, the name "Betterform" may still sound arrogant to some, so
+renaming to "Waveform" is being considered, which plays with the "wave" concept
+defined below.
 
