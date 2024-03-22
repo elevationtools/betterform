@@ -62,8 +62,8 @@ down: $(STAGES_DOWN)
 
 # TODO: This reruns if any impl or output is newer, which is wrong, it should
 # only look at direct dependencies.
-$(EVT)/%-stamped: \
-		$(shell find $(IMPL_DIR) $(OUTPUT_DIR)) $(CONFIG_JSON_FILE) \
+$(EVT)/%-stamped: $(CONFIG_JSON_FILE) \
+		$(shell find $(IMPL_DIR) $(OUTPUT_DIR) -prune $(GENFILES) -o -print) \
 		| $(EVT) $(OUTPUT_DIR)
 	@# TODO: remove files in output-dir that don't exist in input-dir without
 	@# removing everything.
