@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+#
+# Internal helper, do not use directly.
+#
+# This is just a thin wrapper around terraform that ensures the lock file and
+# output files go where they belong.
+set -euo pipefail
+
+this_dir="$(dirname "$(readlink -f "$0")")"
+
+function main() {
+  cmd="${1:?}"
+
+  : ${STAGE_NAME:?}
+  : ${OUTPUT_DIR:?}
+  : ${GENFILES:?}
+  : ${INTERACTIVE:=true}
+
+  local stage_output_dir="$OUTPUT_DIR/$STAGE_NAME"
+
+  case "$cmd" in
+    up|down) "cmd_$cmd" ;;
+    *) echo "ERROR: invalid command: $cmd" >&2; exit 1 ;;
+  esac
+}
+
+function common_init() {
+  if [ -e "$stage_output_dir/.terraform.lock.hcl" ]; then
+    cp -at ./ "$stage_output_dir/.terraform.lock.hcl"
+  fi
+  terraform init $( [[ "$INTERACTIVE" != false ]] || echo '-input=false' )
+  mkdir -p "$stage_output_dir"
+  cp -at "$stage_output_dir" ".terraform.lock.hcl"
+}
+
+function cmd_up() {
+  common_init
+
+  local outfile="$stage_output_dir/output.json"
+  echo "Running 'terraform apply'"
+  terraform apply \
+    $( [[ "$INTERACTIVE" != false ]] || echo '-input=false -auto-approve' )
+  echo "Running 'terraform output -json'"
+  if terraform output -json > "${outfile}.tmp"; then
+    mv "${outfile}.tmp" "$outfile"
+  else
+    echo "Error: output saved in ${outfile}.tmp" >&2
+    exit 1
+  fi
+}
+
+function cmd_down() {
+  common_init
+
+  echo "Running 'terraform destroy'"
+  terraform destroy \
+    $( [[ "$INTERACTIVE" != false ]] || echo '-input=false -auto-approve' )
+}
+
+main "$@"
+
