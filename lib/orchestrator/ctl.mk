@@ -18,19 +18,19 @@ CONFIG_JSON_FILE ?= genfiles/config.json
 # and provide CONFIG_JSON_FILE yourself.
 CONFIG_JSONNET_FILE ?= config.jsonnet
 
-JSONNET ?= jsonnet
-JSONNET_DEPS ?= jsonnet-deps
+export JSONNET ?= jsonnet
+export JSONNET_DEPS ?= jsonnet-deps
 
 #### Implementation ####
 
 # Lock down the file paths to abs paths.  This is a lot more convenient and safe
 # for the stage implementations. (Beware of adding whitespace)
-#export IMPL_DIR := $(or $(abspath $(IMPL_DIR)), $(error required))
-#export GENFILES := $(or $(abspath $(GENFILES)), $(error required))
-#export OUTPUT_DIR := $(or $(abspath $(OUTPUT_DIR)), $(error required))
-#export CONFIG_JSON_FILE := $(or $(abspath $(CONFIG_JSON_FILE)), $(error required))
+export IMPL_DIR := $(or $(abspath $(IMPL_DIR)), $(error required))
+export GENFILES := $(or $(abspath $(GENFILES)), $(error required))
+export OUTPUT_DIR := $(or $(abspath $(OUTPUT_DIR)), $(error required))
+export CONFIG_JSON_FILE := $(or $(abspath $(CONFIG_JSON_FILE)), $(error required))
 # Blank without an error if CONFIG_JSONNET_FILE is blank.
-#export CONFIG_JSONNET_FILE := $(abspath $(CONFIG_JSONNET_FILE))
+export CONFIG_JSONNET_FILE := $(abspath $(CONFIG_JSONNET_FILE))
 
 DAG_MAKE_FILE := $(IMPL_DIR)/dag.mk
 EVT := $(GENFILES)/events
