@@ -18,6 +18,9 @@ CONFIG_JSON_FILE ?= genfiles/config.json
 # and provide CONFIG_JSON_FILE yourself.
 CONFIG_JSONNET_FILE ?= config.jsonnet
 
+JSONNET ?= jsonnet
+JSONNET_DEPS ?= jsonnet-deps
+
 #### Implementation ####
 
 # Lock down the file paths to abs paths.  This is a lot more convenient and safe
