@@ -7,10 +7,6 @@
 set -euo pipefail
 
 this_dir="$(dirname "$(readlink -f "$0")")"
-[[ "$this_dir" == "$PWD" ]] || {
-  echo "This file expects to run from the directory where it lives"
-  exit 1
-} >&2
 
 function main() {
   cmd="${1:?}"
@@ -33,6 +29,7 @@ function common_init() {
     cp -at ./ "$stage_output_dir/.terraform.lock.hcl"
   fi
   terraform init $( [[ "$INTERACTIVE" != false ]] || echo '-input=false' )
+  mkdir -p "$stage_output_dir"
   cp -at "$stage_output_dir" ".terraform.lock.hcl"
 }
 

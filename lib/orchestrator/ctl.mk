@@ -5,7 +5,7 @@ $(lastword $(MAKEFILE_LIST)):: ;
 
 #### Interface ####
 
-# Directory containing the dag.mk and the stage directories.
+# Directory containing the betterform_dag.mk and the stage directories.
 IMPL_DIR ?= .
 # Directory to place temporary generated files that shouldn't be checked in to
 # version control.
@@ -32,7 +32,7 @@ export CONFIG_JSON_FILE := $(or $(abspath $(CONFIG_JSON_FILE)), $(error required
 # Blank without an error if CONFIG_JSONNET_FILE is blank.
 export CONFIG_JSONNET_FILE := $(abspath $(CONFIG_JSONNET_FILE))
 
-DAG_MAKE_FILE := $(IMPL_DIR)/dag.mk
+DAG_MAKE_FILE := $(IMPL_DIR)/betterform_dag.mk
 EVT := $(GENFILES)/events
 
 # Utility function for easing the DAG definition, for use by the included DAG
@@ -63,10 +63,11 @@ down: $(STAGES_DOWN)
 # TODO: This reruns if any impl or output is newer, which is wrong, it should
 # only look at direct dependencies.
 $(EVT)/%-stamped: $(CONFIG_JSON_FILE) \
-		$(shell find $(IMPL_DIR) $(OUTPUT_DIR) -prune $(GENFILES) -o -print) \
+		$(shell find $(IMPL_DIR) $(OUTPUT_DIR) -path $(GENFILES) -prune -o -print) \
 		| $(EVT) $(OUTPUT_DIR)
 	@# TODO: remove files in output-dir that don't exist in input-dir without
 	@# removing everything.
+	mkdir -p "$(GENFILES)/$*"
 	STAGE_NAME="$*" gomplate --context "cfg=$(CONFIG_JSON_FILE)" \
 		--input-dir "$(IMPL_DIR)/$*" --output-dir "$(GENFILES)/$*"
 	touch $@
@@ -74,20 +75,19 @@ $(EVT)/%-stamped: $(CONFIG_JSON_FILE) \
 ifdef CONFIG_JSONNET_FILE
 $(CONFIG_JSON_FILE): $(CONFIG_JSONNET_FILE) \
 		$(shell $(JSONNET_DEPS) $(CONFIG_JSONNET_FILE))
+	mkdir -p $(dir $(CONFIG_JSON_FILE))
 	$(JSONNET) $(CONFIG_JSONNET_FILE) -o $(CONFIG_JSON_FILE)
 endif
 
 $(EVT)/%-up: $(EVT)/%-stamped
 	rm -f $(EVT)/$*-down
-	cd $(GENFILES)/$* && \
-		STAGE_NAME="$*" $(GENFILES)/$*/ctl up
+	cd $(GENFILES)/$* && STAGE_NAME="$*" ./ctl up
 	touch $@
 
 $(EVT)/%-down:
 	rm -f $(EVT)/$*-up
 	if test -e $(EVT)/$*-stamped; then \
-		cd $(GENFILES)/$* && \
-			STAGE_NAME="$*" $(GENFILES)/$*/ctl down && touch $@; \
+		(cd $(GENFILES)/$* && STAGE_NAME="$*" ./ctl down && touch $@); \
 	else \
 		echo "$* skipping, not stamped."; \
 	fi
