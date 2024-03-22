@@ -7,6 +7,10 @@
 set -euo pipefail
 
 this_dir="$(dirname "$(readlink -f "$0")")"
+[[ "$this_dir" == "$PWD" ]] || {
+  echo "This file expects to run from the directory where it lives"
+  exit 1
+} >&2
 
 function main() {
   cmd="${1:?}"
@@ -16,7 +20,6 @@ function main() {
   : ${GENFILES:?}
   : ${INTERACTIVE:=true}
 
-  local stage_stamp_dir="$GENFILES/$STAGE_NAME"
   local stage_output_dir="$OUTPUT_DIR/$STAGE_NAME"
 
   case "$cmd" in
@@ -29,42 +32,32 @@ function common_init() {
   if [ -e "$stage_output_dir/.terraform.lock.hcl" ]; then
     cp -at ./ "$stage_output_dir/.terraform.lock.hcl"
   fi
-  (
-    cd "$stage_stamp_dir"
-    terraform init $( [[ "$INTERACTIVE" != false ]] || echo '-input=false' )
-  )
+  terraform init $( [[ "$INTERACTIVE" != false ]] || echo '-input=false' )
   cp -at "$stage_output_dir" ".terraform.lock.hcl"
 }
 
 function cmd_up() {
   common_init
 
-  (
-    cd "$stage_stamp_dir"
-
-    local outfile="$stage_output_dir/output.json"
-    echo "Running 'terraform apply'"
-    terraform apply \
-      $( [[ "$INTERACTIVE" != false ]] || echo '-input=false -auto-approve' )
-    echo "Running 'terraform output -json'"
-    if terraform output -json > "${outfile}.tmp"; then
-      mv "${outfile}.tmp" "$outfile"
-    else
-      echo "Error: output saved in ${outfile}.tmp" >&2
-      exit 1
-    fi
-  )
+  local outfile="$stage_output_dir/output.json"
+  echo "Running 'terraform apply'"
+  terraform apply \
+    $( [[ "$INTERACTIVE" != false ]] || echo '-input=false -auto-approve' )
+  echo "Running 'terraform output -json'"
+  if terraform output -json > "${outfile}.tmp"; then
+    mv "${outfile}.tmp" "$outfile"
+  else
+    echo "Error: output saved in ${outfile}.tmp" >&2
+    exit 1
+  fi
 }
 
 function cmd_down() {
   common_init
 
-  (
-    cd "$stage_stamp_dir"
-    echo "Running 'terraform destroy'"
-    terraform destroy \
-      $( [[ "$INTERACTIVE" != false ]] || echo '-input=false -auto-approve' )
-  )
+  echo "Running 'terraform destroy'"
+  terraform destroy \
+    $( [[ "$INTERACTIVE" != false ]] || echo '-input=false -auto-approve' )
 }
 
 main "$@"

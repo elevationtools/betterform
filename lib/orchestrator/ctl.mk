@@ -74,19 +74,20 @@ $(EVT)/%-stamped: $(CONFIG_JSON_FILE) \
 ifdef CONFIG_JSONNET_FILE
 $(CONFIG_JSON_FILE): $(CONFIG_JSONNET_FILE) \
 		$(shell $(JSONNET_DEPS) $(CONFIG_JSONNET_FILE))
-	echo FOOOOZ: $@ $$PWD
 	$(JSONNET) $(CONFIG_JSONNET_FILE) -o $(CONFIG_JSON_FILE)
 endif
 
 $(EVT)/%-up: $(EVT)/%-stamped
 	rm -f $(EVT)/$*-down
-	STAGE_NAME="$*" $(GENFILES)/$*/ctl up
+	cd $(GENFILES)/$* && \
+		STAGE_NAME="$*" $(GENFILES)/$*/ctl up
 	touch $@
 
 $(EVT)/%-down:
 	rm -f $(EVT)/$*-up
 	if test -e $(EVT)/$*-stamped; then \
-		STAGE_NAME="$*" $(GENFILES)/$*/ctl down && touch $@; \
+		cd $(GENFILES)/$* && \
+			STAGE_NAME="$*" $(GENFILES)/$*/ctl down && touch $@; \
 	else \
 		echo "$* skipping, not stamped."; \
 	fi
