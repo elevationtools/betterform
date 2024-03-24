@@ -1,45 +1,31 @@
 
 # Betterform
 
-An infrastructure-as-code tool meant to fill gaps in other tools like Terraform,
-Jsonnet, etc.
+An infrastructure-as-code tool meant to weave together and fill gaps in other
+tools like Terraform, Jsonnet, Helm, etc.
 
 
 ## Key design goals
 
-- Provide a general templating solution to fill missing pieces in tools like
-  Terraform and Jsonnet.  The solution should be powerful and generic enough to
-  solve problems for many tools, rather than requiring a different solution for
-  each tool.
+- Enable creating infrastructure turn-up/turn-down tools expressed as a Directed
+  Acyclic Graph (DAG) of one or more "stages".
 
-- Allow creating a DAG of "stages", with each stage able to be implemented with
-  any language and tooling such as Terraform, jsonnet, golang, bash, GNU make,
-  CloudFormation, kubectl, etc.
+- Enable stages to be written in any tool, Terraform, bash, golang, etc.  Often
+  official documentation for accomplishing a task provides commands calling a
+  CLI.
 
+- Enable dependent stages to use the output of dependency stages.
 
-## Comparing to Alternatives
+- Enable creating libraries that can be reused in arbitrary different deployment
+  settings such as in different clusters and environments (dev, staging, prod,
+  etc).
 
-The most obvious alternatives are Terragrunt and Terraspace. They are motivated
-by the same problems in Terraform (discussed below) that motivated this project.
-Betterform has the following advantages:
+- Enable expressing configuration via Jsonnet.  (Any config language that
+  produces JSON can be used, but Jsonnet has native support).
 
-- It's not specific to Terraform.  It's often more productive to mix Terraform
-  with other tooling, for example, direct use of `kubectl` combined with
-  `jsonnet`.  Betterform supports this more general purpose use case and is
-  useful in solving similar problems in any tooling, even tools that don't yet
-  exist!
-
-- Betterform requires learning much less single-purpose and framework-specific
-  knowledge.  Instead, it makes use of generally useful tools, like `gomplate`.
-
-
-## Status
-
-Currently, at the "working prototype" stage.  The implementation makes heavy use
-of bash and GNU make.  Long term, different tools should probably be considered
-(golang, etc).  Additionally, `gomplate` is currently used for templating but a
-different general purpose templating solution could improve upon some
-shortcomings of `gomplate` that impact Betterform.
+- Enable stages to be templatized so that a common tool can be used to fill the
+  missing pieces in tools like Terraform, Helm, Jsonnet, etc (the gaps are
+  identified below), rather than requiring specific solutions for each tool.
 
 
 ## Common Tooling Problems Addressed
@@ -63,132 +49,109 @@ Terragrunt and Terraspace.
 ### Jsonnet Problems
 
 - Lack of computed imports.
-- Potentially problematic requirement to add configuration for each environment
-  variables that needs to be accessed.
+- No convenient access to environment variables. (`-V` + `std.extVar` is tedious
+  and can be problematic when jsonnet is invoked for you and you don't have the
+  ability to provide `-V` to it).
 
 ### Helm Problems
 
-- Lack of ability to parameterize `Values.yaml`.
+- Lack of ability to parameterize `Values.yaml` with go templating.
 - Lack of transitive dependency fetching preventing code reuse through layering.
-  (this is only indirectly solved by Betterform).
+  (though this arguable isn't solved by Betterform, aside from allowing you to
+  avoid Helm as much a possible and focus on better tools like Jsonnet).
 
-> NOTE: Support for including Helm chart sources will require an additional
-> feature to allow passing to `gomplate` different values for `--left-delim` and
-> `--right-delim`.  Helm charts can still be used today if they are referenced
-> by name rather than directly including the source.
+
+## Comparing to Alternatives
+
+### Terragrunt and Terraspace
+
+The most obvious alternatives are Terragrunt and Terraspace. They are motivated
+by the same problems in Terraform discussed above.  Compared to these,
+Betterform has the following advantages:
+
+- Betterform is not specific to Terraform, instead allowing stages to be written
+  in a mix of Terraform, bash calling CLIs, etc.  The Terra\* tools only support
+  Terraform stages.
+
+- Betterform requires learning much less single-purpose and framework-specific
+  knowledge.  Instead, it makes use of generally useful tools, like `gomplate`
+  and Jsonnet.
+
+- The ability to use Jsonnet (or other config language) provides a few benefits:
+  - Allows using a more powerful and productive configuration language than pure
+    Terraform, allowing writing much more declarative configurations than pure
+    Terraform.  Terraform instead just reads the highly declarative
+    configuration and converts it into API calls to the cloud to create infra.
+  - Allows easily and efficienctly using your configuration outside of Terraform
+    when Terraform isn't a good tool for the job. (No need for the slow "init"
+    and managing providers and state).
+
+An additional advantage over Terraspace is that it has no dependency on Ruby.
+
+### Tonka
+
+Tonka and Betterform aren't really trying to address the same problem and so
+could be reasonably used in complementary roles. Tonka is focused on Jsonnet for
+kubernetes application deployments.  Betterform is more intended to bring up the
+infrastructure (cloud networking, managed kubernetes service, etc) that the
+application deployments would then use.
 
 
 ## Core Concepts
 
-### Wave Program and Wave Interface
-
-The core concept of Betterform is a "Wave Program".  A program is a "Wave
-Program" (or just "wave" for short) if it implements the "Wave Interface", which
-is canonically defined here by the following requirements:
-
-- Is executable.
-
-- MUST implement `up` and/or `down` commands.
-  - Note: This is where the name comes from, waves go up and down.
-
-- MUST handle the command `help`, which MUST be the default command.
-  - i.e. running both `./prog help` and `./prog` will show help.
-  - `help` SHOULD print the list of all commands available and any other
-    important information to know how to use the wave.
-  - If only `up` and `down` are available, then help can optionally be blank.
-
-- Respects the following environment variables:
-  - `GENFILES`
-    - Defaults to `./genfiles`
-    - A directory that the wave program MUST use for files that SHOULD NOT be
-      checked into version control, but that MUST still be kept around for use
-      by other dependency programs, or that SHOULD be kept around to avoid
-      unnecessarily repeating time consuming steps.
-      - Note: You almost certainly want `.gitignore` to contain `**/genfiles/`.
-  - `OUTPUT_DIR`
-    - Defaults to `.`
-    - Defines a directory where the wave should store output that is meant to be
-      checked into version control.
-  - `CONFIG_JSON_FILE`
-    - Defaults to `./genfiles/config.json`
-    - Path to a JSON file that the wave program can read to adapt behavior. The
-      wave program SHOULD document the schema it expects.
-    - Optional for waves that don't need configuration.
-  - `CONFIG_JSONNET_FILE`
-    - Defaults to `./config.jsonnet`
-    - A path to a jsonnet file which will produce and/or update
-      `CONFIG_JSON_FILE`.
-      - Default GNU make semantics are used to update `CONFIG_JSON_FILE` with
-        prerequists as `CONFIG_JSONNET_FILE` and
-        `jsonnet-deps $CONFIG_JSONNET_FILE`.
-    - Optional for wave implementations (and so far none of the standard waves
-      in the library use this).
-    - Optional for callers of the wave.  If not specified, the caller MUST make
-      sure `CONFIG_JSON_FILE` already exists.
-  - `INTERACTIVE`
-    - Defaults to unset.
-    - If set to exactly `false` then avoid prompting the user so that it can be
-      used in automation.
-  - `IMPL_DIR`
-    - Defaults to `.`
-    - Path to where the wave program's implementation files are located.  This
-      is often different from the current working directory because wave's are
-      meant to be implemented once, then called from many different directories,
-      each with a different configurations, in order to support different
-      deployments in different locations (dev in us-east, staging in eu-north,
-      etc).
-
-Notes:
-- If a wave program has expectations about the current working directory or
-  `IMPL_DIR`, then it MUST document this.
-- Relative paths in the above environment variables are considered relative to
-  the current working directory when the wave program is called.
-
-Implementation Requirements:
-- Competely unspecified. It can be implemented however you like in any language.
-
-
-## Standard Library
-
-The following waves are implemented under `./lib/`.  They should be used via the
-symlinks `./bin/betterform_*`.
-
-### Standalone Waves
-
-#### `terraform_standalone`
-
-A wave program which stamps `$IMPL_DIR/template` using `gomplate` to
-`$GENFILES/stamped` and then runs terraform within that directory.
-
-This cannot be used as an orchestrator stage.  Instead use
-`./lib/orchestrator/stage/terraform`.
-
-#### `terraform_jsonnet_standalone`
-
-The same as `terraform_standalone` except that `CONFIG_JSONNET_FILE` is used
-instead of `CONFIG_JSON_FILE`.
-
-> TODO: deprecate this and implement the functionality within
-> `terraform_standalone` directly.
-
-#### `terraform_state_storage_aws`
-
-A wave program which creates the AWS S3 and DynamoDB resources to be used for
-terraform state storage.
-
 ### Orchestrator and Stages
 
-The orchestrator is a wave program which internally executes a DAG of child
-"stages", each of which it stamps with `gomplate`, and upon stamping becomes a
-wave program itself.
+The "orchestrator" is the main way users interact with Betterform.  A user
+defines "stages", a DAG relating the stages, and then calls the orchestrator to
+run the DAG.
 
-[`./lib/orchestrator/`](./lib/orchestrator/).  See the README for details.
+- Each stage is defined as a directory of templates that are "stamped" via
+  `gomplate`.  The stamped directory must can an executable named `ctl` which
+  takes the `up` and `down` commands (i.e. `./ctl up` and `./ctl down` work).
+- The stages have access to JSON based configuration both during stamp time as
+  well as at run time.
+- Configuration can optionally be given as Jsonnet instead of raw JSON.
+- Each stage isn't stamped until all dependency stages have successfully run
+  `up`. This means that a dependent stage has access to the output of dependency
+  stages both at run time AND at stamp time.
+- There is a utility library for common stages types (e.g. Terraform) that take
+  care of much of the boilerplate (discussed later).
 
-Most standalone waves in the standard library cannot be used directly as stages,
-so instead they have implementations in `./lib/orchestrator/stage/*`.
+
+## Getting Started
+
+- See the [Example Usage with Explanation](./example_usage_explained.md)
+- See the [Orchestrator Details](./orchestrator.md) for details on how to work
+  with the orchestrator, including how to write stages.
+- See [Common Stage Utilities](./common_stage_utilities.md) for utilities meant
+  to ease making common types of stages.
+
+> Note: Users should use the executables in`/bin/*` rather than calling directly
+> into `/lib/...`
+
+
+## Project Status
+
+Currently, at the "working prototype" stage.  The implementation makes heavy use
+of bash and GNU make.  Long term, different tools should probably be considered
+(golang, etc).  Additionally, `gomplate` is currently used for templating but a
+different general purpose templating solution could improve upon some
+shortcomings of `gomplate` that impact Betterform (discussed below in the "Future
+Work" section).
 
 
 ## Future Work
+
+### Core Functionality Integration Tests
+
+Create an integration test of just the core functionality (not the utility
+libraries) which doesn't require slow operations like the working demo.
+
+### Working Demo
+
+Create a working demo, similar to the integration test, but focused on teaching
+how to use Betterform.  Include use of some common stage utilities, which may be
+slow running.
 
 ### diffing
 
@@ -201,11 +164,9 @@ diff something that doesn't have its dependencies up already.
 Similar to above, perhaps add something like `stamp_next` to stamp at least what
 can be stamped.
 
-### Helm support
+### support setting `gomplate` delimiters
 
-Helm also uses go templating and therefore a Helm chart in a stage template
-would cause gomplate to fail. Also see the related "future work" item in
-[`./lib/orchestrator/README.md`](./lib/orchestrator/README.md).
+See https://docs.gomplate.ca/usage/#overriding-the-template-delimiters
 
 ### Issues with `gomplate`
 
@@ -224,6 +185,7 @@ Solving the following issues with `gomplate` would be helpful for Betterform
     - Option 2) Make the timestamps of the output files match the timestamps of
       the input files.  This would allow `rm -rf` to work while not confusing
       `make`'s timestamp checking.
+
 
 ## The "Betterform" Name
 
