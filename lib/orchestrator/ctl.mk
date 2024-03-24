@@ -5,19 +5,22 @@ $(lastword $(MAKEFILE_LIST)):: ;
 
 #### Interface ####
 
+## Required
 # Directory containing the betterform_dag.mk and the stage directories.
-IMPL_DIR ?= .
+IMPL_DIR ?=  $(error required)
+
+## Reasonable defaults
 # Directory to place temporary generated files that shouldn't be checked in to
 # version control.
 GENFILES ?= genfiles
 # Directory to place output files that should be checked in to version control.
-OUTPUT_DIR ?= .
+OUTPUT_DIR ?= output
 # Required config files (but which might be generated, which by default it is).
 CONFIG_JSON_FILE ?= genfiles/config.json
-# Optional conifg file which will generate the CONFIG_JSON_FILE. Set to blank
-# and provide CONFIG_JSON_FILE yourself.
+# Config file which will generate the CONFIG_JSON_FILE.
 CONFIG_JSONNET_FILE ?= config.jsonnet
-
+# Allow using alternative jsonnet tools, for example, if a wrapper calling -V is
+# needed.
 export JSONNET ?= jsonnet
 export JSONNET_DEPS ?= jsonnet-deps
 
@@ -72,12 +75,10 @@ $(EVT)/%-stamped: $(CONFIG_JSON_FILE) \
 		--input-dir "$(IMPL_DIR)/$*" --output-dir "$(GENFILES)/$*"
 	touch $@
 
-ifdef CONFIG_JSONNET_FILE
 $(CONFIG_JSON_FILE): $(CONFIG_JSONNET_FILE) \
 		$(shell $(JSONNET_DEPS) $(CONFIG_JSONNET_FILE))
 	mkdir -p $(dir $(CONFIG_JSON_FILE))
 	$(JSONNET) $(CONFIG_JSONNET_FILE) -o $(CONFIG_JSON_FILE)
-endif
 
 $(EVT)/%-up: $(EVT)/%-stamped
 	rm -f $(EVT)/$*-down

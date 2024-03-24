@@ -1,29 +1,37 @@
 
 # Orchestrator
 
-A wave program which internally executes a DAG of child "stages", defined below.
+## Basic Operation
 
-## Stage Definition
+A user implements their tool as a library in a directory which looks something
+like the following:
 
-A single step of an Orchestrator's DAG.
+```
+my_tool
+├── config.libsonnet
+├── betterform_dag.mk
+├── stage_one
+│   └── ctl
+└── another_stage
+    ├── ctl
+    └── stuff.tf
+```
 
-A stage is defined by a directory containing a wave program called `ctl` and
-potentially other companion files.  All files in the directory are interpreted
-as `gomplate` templates.  This directory is called the "stage template
-directory".  It must live directly under `IMPL_DIR`.
+- `config.libsonnet` is configuration that 
+  stage both at stamp time and run time.
+- `betterform_dag.mk` contains the DAG relating the stages. It's format is described below.
+- `stage_one` and `another_stage` are stage template directories.
 
-The orchestrator "stamps" the entire stage template directory using `gomplate`
-into `$GENFILES/the_stage_name`, which is called the "stage stamped directory".
-It then runs the stage's `ctl` from there.
+The user then calls their library from another directory like the following:
 
-The stamped `ctl` must implement the wave interface, including the `up` and
-`down` commands.
+```
+.../prod/eu-north-1/my_tool
+├── config.jsonnet
 
-
-## Orchestrator Basic Operation
+```
 
 The orchestrator:
-- Reads the DAG from `$IMPL_DIR/dag.mk`.
+- Reads the DAG from `$IMPL_DIR/betterform_dag.mk`.
 - Reads each stage definition from `$IMPL_DIR/the_stage_name` and stamps it to
   `$GENFILES/the_stage_name`.
 - Only stamps a stage once all its dependency stages have run successfully and
@@ -39,9 +47,28 @@ The orchestrator:
     needs to do this itself.
 
 
-## `dag.mk`
+## Stage
 
-Callers must create `$IMPL_DIR/dag.mk` to define the DAG of stages.  The GNU
+A stage is defined a directory under `$IMPL_DIR/containing a wave program which must be called
+`ctl` and potentially other companion files.  All files in the directory are
+interpreted as `gomplate` templates.  This directory is called the "stage
+template directory".  It must live directly under `IMPL_DIR`.
+
+The orchestrator "stamps" the entire stage template directory using `gomplate`
+into `$GENFILES/the_stage_name`, which is called the "stage stamped directory".
+It then runs the stage's `ctl` from there.
+
+The stamped `ctl` must implement the wave interface, including the `up` and
+`down` commands.
+
+> ([`.gomplateignore`](https://docs.gomplate.ca/usage/#gomplateignore-files) may
+> be useful, especially if including **Helm chart sources**)
+
+
+
+## `betterform_dag.mk`
+
+Callers must create `$IMPL_DIR/betterform_dag.mk` to define the DAG of stages.  The GNU
 make macro `define_stage` must be used for this purpose. Here is an example
 implementation to define this DAG:
 
@@ -129,7 +156,4 @@ Key points:
   get processed by gomplate.  Use a syntax similar to `dockerignore` files.
 
 - Allow configuring the `--left-delim` and `--right-delim` options of gomplate.
-
-- Support Helm charts being directly include in stage template directories.  The
-  above 2 points would probably be sufficient.
 
