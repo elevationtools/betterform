@@ -112,7 +112,7 @@ exec betterform_orchestrator "$@"
 ```
 
 
-It could also optionally provide additional documentation if the operators gives
+It could also optionally provide additional documentation if the operator enters
 the `help` command.  `betterform_orchestrator` requires `IMPL_DIR` to be set.
 
 `betterform_dag.mk` defines the DAG relating the stages and would look something
@@ -130,8 +130,8 @@ really.
 
 `$STAGE_NAME/ctl` are executable files which the orchestrator calls to bring the
 stage's infrastructure up or down.
-- > In the case of Terraform stages, the `ctl` executable would just call the
-  > library `betterform_stage_terraform` to avoid the boilerplate.
+- > See [`/common_stage_utilities.md`](/common_stage_utilities.md) to avoid
+  boilerplate for common stage types.
 
 
 ## jsonnet config files
