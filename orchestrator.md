@@ -30,20 +30,18 @@ default value when implementing stages.
 
 - `GENFILES`
   - Defaults to `./genfiles`
-  - A directory that the wave program MUST use for files that SHOULD NOT be
-    checked into version control, but that MUST still be kept around for use
-    by other dependency programs, or that SHOULD be kept around to avoid
-    unnecessarily repeating time consuming steps.
+  - A directory that MUST be used for files that SHOULD NOT be checked into
+    version control, but that MUST still be kept around for use by other
+    dependency programs, or that SHOULD be kept around to avoid unnecessarily
+    repeating time consuming steps.
     - Note: You almost certainly want `.gitignore` to contain `**/genfiles/`.
 - `OUTPUT_DIR`
   - Defaults to `.`
-  - Defines a directory where the wave MUST store output that is meant to be
+  - Defines a directory that MUST be used for storing output that is meant to be
     checked into version control.
 - `CONFIG_JSON_FILE`
   - Defaults to `./genfiles/config.json`
-  - Path to a JSON file that the wave program MAY read to adapt behavior. The
-    wave program SHOULD document the schema it expects.
-  - Optional for waves that don't need configuration.
+  - Path to a JSON file that MAY be read to configure behavior.
 - `CONFIG_JSONNET_FILE`
   - Defaults to `./config.jsonnet`
   - A path to a jsonnet file which will produce and/or update
@@ -51,8 +49,8 @@ default value when implementing stages.
     - GNU make semantics (timestamp) are used to update `CONFIG_JSON_FILE`
       with prerequists as `CONFIG_JSONNET_FILE` and `jsonnet-deps
       $CONFIG_JSONNET_FILE`.
-  - Optional for callers of the wave.  If not specified, the caller MUST make
-    sure `CONFIG_JSON_FILE` already exists.
+  - Optional for callers.  If not specified, the caller MUST produce
+    `CONFIG_JSON_FILE` themselves.
 
 > Relative paths in the above environment variables are considered relative to
 > the user's current working directory when they call the orchestrator.
@@ -63,17 +61,18 @@ default value when implementing stages.
 ### Requirements
 
 - The stage's template directory MUST be directly in the `$IMPL_DIR`.
-- Contains an executable named `ctl` which takes the `up` and `down` commands.
+- The stage's stamped directory MUST contain an executable named `ctl` which
+  takes the `up` and `down` commands.
 
 Aside from that, there are no requirements.  `ctl` can be a script or a binary.
-It can have sibling files, directories, etc.
+It can have sibling files and directories that get stamped along with it.
 
 ### Interaction with Orchestrator
 
 #### Step 0) Run Dependencies
 
-First, all dependency stages are run and must be successful before this stage is
-stamped.
+First, all dependency stages are run and must be successful before a given stage
+is stamped.
 
 #### Step 1) Stamping the Stage
 
@@ -150,11 +149,11 @@ terraform destroy
 # ...etc...
 ```
 
-Keep in mind that this might not work in general, but will likely work for
-Terraform.  This is because the orchestrator sets the environment variables
-above, and the stage's `ctl` is expecting these variables to be set.  However,
-since Terraform doesn't allow looking at arbitrary environment variables and
-none of the above variables are `TF_VAR_...` vars, it should all work out.  The
-gomplate stamping will have already resolved any environment variables into
-their values.
+> Keep in mind that this might not work for all stage types, but should work for
+> Terraform stages.  This is because the orchestrator sets the environment
+> variables above, and the stage's `ctl` is expecting these variables to be set.
+> However, since Terraform doesn't allow looking at arbitrary environment
+> variables and none of the above variables are `TF_VAR_...` vars, it should all
+> work out.  The gomplate stamping will have already resolved any of these
+> environment variables into their final values.
 

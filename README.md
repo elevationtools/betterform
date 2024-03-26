@@ -38,7 +38,10 @@ Betterform.
 - Inability to parameterize `backend` configuration.
 - Lack of solution when multi-staging is required. (and [Terraform admits it's
   required in many common
-  cases](https://github.com/hashicorp/terraform/issues/27785#issuecomment-780017326)).
+  cases](https://github.com/hashicorp/terraform/issues/27785#issuecomment-780017326)
+  and [AWS Terraform Blueprints
+  mentions](https://github.com/aws-ia/terraform-aws-eks-blueprints?tab=readme-ov-file#terraform-caveats)
+  this is problematic for them too).
 - Extreme boilerplate when trying to use a module as a library for multiple
   different deployments/environments/etc.  In particular, there is much
   redundancy of the `terraform` and `provider` blocks.
@@ -106,11 +109,13 @@ defines "stages", a DAG relating the stages, and then calls the orchestrator to
 run the DAG.
 
 - Each stage is defined as a directory of templates that are "stamped" via
-  `gomplate`.  The stamped directory must can an executable named `ctl` which
-  takes the `up` and `down` commands (i.e. `./ctl up` and `./ctl down` work).
+  `gomplate`.  The stamped directory must contain an executable named `ctl`
+  which takes the `up` and `down` commands (i.e. `./ctl up` and `./ctl down`
+  work).
 - The stages have access to JSON based configuration both during stamp time as
   well as at run time.
-- Configuration can optionally be given as Jsonnet instead of raw JSON.
+- Configuration is written in Jsonnet by default, but it's possible to use other
+  tools that produce JSON instead.
 - Each stage isn't stamped until all dependency stages have successfully run
   `up`. This means that a dependent stage has access to the output of dependency
   stages both at run time AND at stamp time.
@@ -119,6 +124,9 @@ run the DAG.
 
 
 ## Getting Started
+
+It is recommended to read these in the order listed here (they were written with
+this in mind to avoid having to jump around):
 
 - See the [Example Usage with Explanation](./example_usage_explained.md)
 - See the [Orchestrator Details](./orchestrator.md) for details on how to work
