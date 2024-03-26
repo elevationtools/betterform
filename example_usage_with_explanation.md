@@ -64,12 +64,14 @@ like the following:
 $MY_REPO/deployments/prod/eu-north-1/my_infra
 ├── config.jsonnet
 ├── ctl
-├── output/...
+├── ...output_files_and_dirs...
 └── genfiles/...
 ```
 
-`output/...` will contain output, if any, usually as one or more JSON files.
-These SHOULD be checked into version control.
+`...output_files_and_dirs...` will contain output, if any, usually as one or
+more JSON files possibly nested under directories.  These SHOULD be checked into
+version control.  By convention, stages SHOULD output to
+`./$STAGE_NAME/output.json` or similar, but this isn't enforced.
 
 `genfiles/...` contains other output that SHOULD NOT be checked into version
 control.  This generally contains temporary files, caching, etc.
@@ -81,10 +83,11 @@ cd "$(dirname "$(readlink -f "$0")")"
 exec "$MY_REPO/infra_lib/my_infra" "$@"
 ```
 
-The `output` and `genfiles` directories are created in the caller's current
-working directory, which is why the `cd` is done in `ctl` above.  It allows
-calling `ctl` from anywhere and it will properly set the current working
-directory.
+> The output files and `genfiles` directories are created in the caller's
+> current working directory, which is why the `cd` is done in `ctl` above.  It
+> allows calling `ctl` from anywhere and it will properly set the current
+> working directory.  The `cd` line could be omitted if users are forced to
+> always run `./ctl` from its own directory.
 
 The jsonnet config files are discussed later.
 
